@@ -1,0 +1,59 @@
+from datetime import timedelta
+from fastapi import APIRouter, HTTPException
+from app.schemas.user import UserCreate, UserInDB, UserSignIn
+from app.crud.user import create_user, get_user, get_user_by_username, get_user_by_email, verify_password
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from app.config import settings
+from app.utils.jwt import create_access_token
+from app.utils.license import extract_license_key, generate_license_key
+
+router = APIRouter()
+
+@router.post("/signin", response_model=UserInDB)
+async def signin_user_endpoint(user: UserSignIn):
+    existing_user = await get_user_by_username(user.username)
+    if not existing_user or not await verify_password(user.password, existing_user.password):
+        raise HTTPException(status_code=400, detail="Invalid username or password")
+    access_token = create_access_token(
+        data={"sub": existing_user.username}, expires_delta=timedelta(minutes=30)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/google-signin", response_model=UserInDB)
+async def google_signin_endpoint(token: str):
+    try:
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        email = idinfo['email']
+        name = idinfo.get('name', email)
+        avatar_url = idinfo.get('picture', None)
+        
+        user = await get_user_by_email(email)
+        if not user:
+            user_data = UserCreate(username=email, email=email, password="", avatar_url=avatar_url)
+            user_id = await create_user(user_data)
+            user = UserInDB(id=user_id, **user_data.dict())
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=timedelta(minutes=30)
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid Google token")
+
+@router.get("/{user_id}", response_model=UserInDB)
+async def get_user_endpoint(user_id: str):
+    user = await get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@router.post("/generate-license", response_model=str)
+async def generate_license(user: UserCreate, duration: int):
+    duration_timedelta = timedelta(days=duration)
+    license_key = generate_license_key(user.dict(), duration_timedelta)
+    return license_key
+
+@router.post("/extract-license", response_model=dict)
+async def extract_license(token: str):
+    user_info, expire_date = extract_license_key(token)
+    return {"user_info": user_info, "expire_date": expire_date.isoformat()}
