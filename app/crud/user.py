@@ -1,24 +1,34 @@
 from app.models.user import User
-from app.db.database import client
+from app.db.database import db
 from passlib.context import CryptContext
+from fastapi import HTTPException
+from bson import ObjectId
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 async def create_user(user: User):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
     user.password = pwd_context.hash(user.password)
-    result = await client.my_database.users.insert_one(user.dict(by_alias=True))
+    result = await db["users"].insert_one(user.dict(by_alias=True))
     return result.inserted_id
 
 async def get_user(user_id: str):
-    user = await client.my_database.users.find_one({"_id": user_id})
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
+    user = await db["users"].find_one({"_id": ObjectId(user_id)})
     return User(**user) if user else None
 
 async def get_user_by_username(username: str):
-    user = await client.my_database.users.find_one({"username": username})
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
+    user = await db["users"].find_one({"username": username})
     return User(**user) if user else None
 
 async def get_user_by_email(email: str):
-    user = await client.my_database.users.find_one({"email": email})
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
+    user = await db["users"].find_one({"email": email})
     return User(**user) if user else None
 
 async def verify_password(plain_password: str, hashed_password: str):

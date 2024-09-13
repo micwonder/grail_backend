@@ -20,26 +20,29 @@ async def signin_user_endpoint(user: UserSignIn):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/google-signin", response_model=UserInDB)
-async def google_signin_endpoint(token: str):
-    try:
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
-        email = idinfo['email']
-        name = idinfo.get('name', email)
-        avatar_url = idinfo.get('picture', None)
-        
+@router.post("/google-signin")
+async def google_signin_endpoint(name: str, email: str, picture: str = None):
+        # Check if the user exists in the database by email
         user = await get_user_by_email(email)
         if not user:
-            user_data = UserCreate(username=email, email=email, password="", avatar_url=avatar_url)
+            # If user doesn't exist, create a new user
+            user_data = UserCreate(
+                username=email,
+                email=email,
+                password="",  # No password needed for OAuth2 users
+                avatar_url=picture
+            )
             user_id = await create_user(user_data)
             user = UserInDB(id=user_id, **user_data.dict())
+
+        # Create an access token for the user
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=timedelta(minutes=30)
         )
-        return {"access_token": access_token, "token_type": "bearer"}
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid Google token")
 
+        # Return the access token
+        return {"access_token": access_token, "token_type": "bearer"}
+    
 @router.get("/{user_id}", response_model=UserInDB)
 async def get_user_endpoint(user_id: str):
     user = await get_user(user_id)

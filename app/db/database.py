@@ -1,7 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 
-client: AsyncIOMotorClient = None
+client = AsyncIOMotorClient(settings.MONGO_URL)
+db = client[settings.DATABASE_NAME]
 
 async def connect_to_mongo():
     global client
@@ -9,4 +10,5 @@ async def connect_to_mongo():
 
 async def close_mongo_connection():
     global client
-    client.close()
+    if client:
+        client.close()
