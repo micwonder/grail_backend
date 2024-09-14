@@ -33,7 +33,6 @@ async def google_signin_endpoint(name: str, email: str, picture: str = None):
                 avatar_url=picture
             )
             user_id = await create_user(user_data)
-            user = UserInDB(id=user_id, **user_data.dict())
 
         # Create an access token for the user
         access_token = create_access_token(
@@ -41,7 +40,7 @@ async def google_signin_endpoint(name: str, email: str, picture: str = None):
         )
 
         # Return the access token
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "user": email}
     
 @router.get("/{user_id}", response_model=UserInDB)
 async def get_user_endpoint(user_id: str):

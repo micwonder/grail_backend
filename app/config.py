@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
+    STRIPE_API_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
 
     class Config:
         env_file = ".env"

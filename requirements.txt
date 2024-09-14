@@ -8,3 +8,4 @@ passlib[bcrypt]
 google-auth
 pyjwt
 cryptography
+stripe
