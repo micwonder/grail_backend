@@ -1,8 +1,13 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
+from app.models.license import License
 from app.schemas.user import UserInDB
 from app.crud.user import get_user_by_email
+from app.crud.license import create_license
 from app.config import settings
 import stripe
+
+from app.utils.license import generate_license_key
 
 stripe.api_key = settings.STRIPE_API_KEY
 
@@ -65,6 +70,34 @@ async def stripe_webhook(request: Request):
     # Handle the event
     if event["type"] == "charge.succeeded":
         charge = event["data"]["object"]
+
+        customer_email = charge.get("billing_details", {}).get("email")
+        subscription_id = charge.get("invoice", {}).get("subscription")
+
+        if subscription_id:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            duration = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval_count")
+            interval = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval")
+
+            if interval == "month":
+                duration_days = duration * 30
+            elif interval == "year":
+                duration_days = duration * 365
+            else:
+                duration_days = duration
+
+            user = await get_user_by_email(customer_email)
+            if user:
+                license_key = generate_license_key(user.dict(), timedelta(days=duration_days))
+
+                license_data = License(
+                    user_id=user.id,
+                    license_key=license_key,
+                    expire_date=(datetime.utcnow() + timedelta(days=duration_days)).isoformat(),
+                    device_number=None
+                )
+                await create_license(license_data)
+
         # Handle successful charge
         print(f"Charge succeeded: {charge}")
     elif event["type"] == "charge.failed":
@@ -74,3 +107,12 @@ async def stripe_webhook(request: Request):
     # Add more event types as needed
 
     return {"status": "success"}
+
+@router.get("/available-licenses")
+async def get_available_licenses(user_email: str):
+    user = await get_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    licenses = await get_available_licenses(user.id)
+    return licenses
