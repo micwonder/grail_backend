@@ -61,50 +61,48 @@ async def stripe_webhook(request: Request):
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except ValueError as e:
-        # Invalid payload
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # Handle the event
     if event["type"] == "charge.succeeded":
         charge = event["data"]["object"]
 
         customer_email = charge.get("billing_details", {}).get("email")
-        subscription_id = charge.get("invoice", {}).get("subscription")
+        invoice_id = charge.get("invoice")  # Get the invoice ID directly
 
-        if subscription_id:
-            subscription = stripe.Subscription.retrieve(subscription_id)
-            duration = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval_count")
-            interval = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval")
+        if invoice_id:
+            invoice = stripe.Invoice.retrieve(invoice_id)  # Retrieve the invoice object
+            subscription_id = invoice.get("subscription")  # Now get the subscription ID from the invoice
 
-            if interval == "month":
-                duration_days = duration * 30
-            elif interval == "year":
-                duration_days = duration * 365
-            else:
-                duration_days = duration
+            if subscription_id:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                duration = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval_count")
+                interval = subscription.get("items", {}).get("data", [{}])[0].get("plan", {}).get("interval")
 
-            user = await get_user_by_email(customer_email)
-            if user:
-                license_key = generate_license_key(user.dict(), timedelta(days=duration_days))
+                if interval == "month":
+                    duration_days = duration * 30
+                elif interval == "year":
+                    duration_days = duration * 365
+                else:
+                    duration_days = duration
 
-                license_data = License(
-                    user_id=user.id,
-                    license_key=license_key,
-                    expire_date=(datetime.utcnow() + timedelta(days=duration_days)).isoformat(),
-                    device_number=None
-                )
-                await create_license(license_data)
+                user = await get_user_by_email(customer_email)
+                if user:
+                    license_key = generate_license_key(user.dict(), timedelta(days=duration_days))
 
-        # Handle successful charge
+                    license_data = License(
+                        user_id=user.id,
+                        license_key=license_key,
+                        expire_date=(datetime.utcnow() + timedelta(days=duration_days)).isoformat(),
+                        device_number=None
+                    )
+                    await create_license(license_data)
+
         print(f"Charge succeeded: {charge}")
     elif event["type"] == "charge.failed":
         charge = event["data"]["object"]
-        # Handle failed charge
         print(f"Charge failed: {charge}")
-    # Add more event types as needed
 
     return {"status": "success"}
 
