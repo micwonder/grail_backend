@@ -23,8 +23,8 @@ async def create_checkout_session(user_mail: str, plan_id: str):
                 'quantity': 1,
             }],
             mode='subscription',
-            success_url='https://yourdomain.com/success?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url='https://yourdomain.com/cancel',
+            success_url='https://www.thegrail.app/success',
+            cancel_url='https://www.thegrail.app/cancel',
         )
         return session
     except stripe.error.StripeError as e:

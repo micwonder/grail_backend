@@ -24,6 +24,8 @@ def decrypt_data(token: str, key: bytes):
 # Generate a license key
 def generate_license_key(user_info: dict, duration: timedelta):
     key = settings.SECRET_KEY.encode()  # Use the secret key from settings
+    if len(key) != 32:
+        key = generate_key() 
     expire_date = (datetime.utcnow() + duration).isoformat()
     data = {
         "user_info": user_info,
