@@ -5,7 +5,7 @@ __pycache__/
 *.pyd
 
 # Environment variables
-.env
+# .env
 
 # IDE files
 .vscode/
