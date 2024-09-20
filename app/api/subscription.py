@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from app.models.license import License
 from app.schemas.user import UserInDB
 from app.crud.user import get_user_by_email
-from app.crud.license import create_license, get_available_licenses
+from app.crud.license import check_and_update_device_address, create_license, get_available_licenses
 from app.config import settings
 import stripe
 
@@ -115,3 +115,8 @@ async def get_user_available_licenses(user_email: str):
     
     licenses = await get_available_licenses(str(user.id))
     return licenses
+
+@router.post("/validate-license")
+async def validate_license(license_key: str, device_address: str):
+    result = await check_and_update_device_address(license_key, device_address)
+    return result

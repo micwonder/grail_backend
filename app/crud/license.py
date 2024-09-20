@@ -29,3 +29,27 @@ async def get_available_licenses(user_id: str):
         }
         for license in licenses
     ]
+
+async def check_and_update_device_address(license_key: str, device_address: str):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
+    
+    license_entry = await db["licenses"].find_one({"license_key": license_key})
+    
+    if not license_entry:
+        raise HTTPException(status_code=404, detail="License key not found")
+    
+    current_device_address = license_entry.get("device_number")
+    
+    if current_device_address is None:
+        # Update the device address if it's not set
+        await db["licenses"].update_one(
+            {"license_key": license_key},
+            {"$set": {"device_number": device_address}}
+        )
+        return {"status": "success", "message": "Device address set successfully"}
+    elif current_device_address != device_address:
+        # If the device address is already set and doesn't match
+        raise HTTPException(status_code=400, detail="Device address does not match")
+    
+    return {"status": "success", "message": "Device address is already set and matches"}
