@@ -19,4 +19,13 @@ async def get_available_licenses(user_id: str):
         "expire_date": {"$gt": current_time.isoformat()}
     }).to_list(length=None)
 
-    return licenses
+    # Convert ObjectId to string and return as a list of dictionaries
+    return [
+        {
+            "user_id": str(license["user_id"]),
+            "license_key": license["license_key"],
+            "expire_date": license["expire_date"],
+            "device_number": license.get("device_number")  # Use .get() to avoid KeyError
+        }
+        for license in licenses
+    ]

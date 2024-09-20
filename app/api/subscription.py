@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from app.models.license import License
 from app.schemas.user import UserInDB
 from app.crud.user import get_user_by_email
-from app.crud.license import create_license
+from app.crud.license import create_license, get_available_licenses
 from app.config import settings
 import stripe
 
@@ -107,10 +107,11 @@ async def stripe_webhook(request: Request):
     return {"status": "success"}
 
 @router.get("/available-licenses")
-async def get_available_licenses(user_email: str):
+async def get_user_available_licenses(user_email: str):
     user = await get_user_by_email(user_email)
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    licenses = await get_available_licenses(user.id)
+    licenses = await get_available_licenses(str(user.id))
     return licenses
