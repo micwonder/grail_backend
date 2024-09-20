@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+import os
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import FileResponse
 from app.models.license import License
 from app.schemas.user import UserInDB
 from app.crud.user import get_user_by_email
@@ -120,3 +122,11 @@ async def get_user_available_licenses(user_email: str):
 async def validate_license(license_key: str, device_address: str):
     result = await check_and_update_device_address(license_key, device_address)
     return result
+
+@router.get("/download-app")
+async def download_app():
+    app_file_path = "./holograil.zip"
+    if not os.path.exists(app_file_path):
+        raise HTTPException(status_code=404, detail="App file not found")
+    
+    return FileResponse(app_file_path, media_type='application/octet-stream', filename="holograil.zip")
