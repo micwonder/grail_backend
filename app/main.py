@@ -27,4 +27,4 @@ backend_router = APIRouter()
 backend_router.include_router(user.router, prefix="/users", tags=["users"])
 backend_router.include_router(subscription.router, prefix="/subscriptions", tags=["subscriptions"])
 
-app.include_router(backend_router, prefix="/api")
+app.include_router(backend_router)
