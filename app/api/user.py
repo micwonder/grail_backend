@@ -29,7 +29,7 @@ async def signin_user_endpoint(user: UserSignIn):
     access_token = create_access_token(
         data={"sub": existing_user.username}, expires_delta=timedelta(minutes=30)
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "user": existing_user.email}
 
 @router.post("/google-signin")
 async def google_signin_endpoint(name: str, email: str, picture: str = None):
